@@ -39,10 +39,10 @@ def fetch_device_info(hostname):
             serial_number = data["Hardware info"]["planning_results"][0]["Serial"]
             return software_version, serial_number
         except (KeyError, IndexError):
-            print(f"No data available for hostname: {hostname}")
+            print(f"The host {hostname} does not have any serial or software version.")
             return None, None
     else:
-        print(f"The host {hostname} does not have any data: {response.status_code}")
+        print(f"The host {hostname} does not have any data at all. Error: {response.status_code}")
         return None, None
 
 def update_netbox_device(hostname, software_version, serial_number):
@@ -61,18 +61,18 @@ def update_netbox_device(hostname, software_version, serial_number):
             update_data['serial'] = serial_number
 
         if not update_data:
-            print(f"No updates needed for {hostname}.")
+            print(f"The host {hostname} serial and version is up to date.")
             return
 
         update_url = f"{NETBOX_API_URL}{device_id}/"
         update_response = requests.patch(update_url, headers=NETBOX_HEADERS, json=update_data, verify=False)
         
         if update_response.status_code == 200:
-            print(f"Successfully updated device info for {hostname} in NetBox.")
+            print(f"Updating device info for {hostname} in NetBox...")
             if 'custom_fields' in update_data:
-                print(f"  - Software Version: {software_version}")
+                print(f"  *Updated Software Version to: {software_version}")
             if 'serial' in update_data:
-                print(f"  - Serial Number: {serial_number}")
+                print(f"  *Updated Serial Number to: {serial_number}")
         else:
             print(f"Failed to update device info for {hostname} in NetBox: {update_response.status_code}")
     else:
@@ -80,18 +80,13 @@ def update_netbox_device(hostname, software_version, serial_number):
 
 def main():
     devices = fetch_devices()
+    print("Collecting devices from Slurp'it...")
     for device in devices:
         hostname = device.get("hostname")
         if hostname:
             software_version, serial_number = fetch_device_info(hostname)
             if software_version or serial_number:
-                print(f"Hostname: {hostname}")
-                if software_version:
-                    print(f"  Software Version: {software_version}")
-                if serial_number:
-                    print(f"  Serial Number: {serial_number}")
                 update_netbox_device(hostname, software_version, serial_number)
 
 if __name__ == "__main__":
     main()
-
